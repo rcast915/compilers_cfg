@@ -1,6 +1,6 @@
-
 import json
 import sys
+import argparse
 from collections import OrderedDict, deque, defaultdict
 
 
@@ -35,8 +35,6 @@ def block_map(blocks):
             block = block[1:]
         else:
             name = 'b{}'.format(len(out))
-        
-
         out[name] = block
 
     return out
@@ -62,13 +60,8 @@ def get_cfg(name2block):
     return out
 
 
-''' Assingmet 2 functions '''
+''' Assignment 2 functions '''
 def get_path_lenths(cfg, entry):
-    '''
-    Compute the shortest path length from the entry node to each reachable node in the CFG
-    using BFS. Unreachable nodes are ommited.
-    '''
-
     dist = {entry: 0 }
     q = deque([entry])
 
@@ -81,9 +74,6 @@ def get_path_lenths(cfg, entry):
     return dist
 
 def reverse_postorder(cfg, entry):
-    '''
-    Compute reverse postorder for cfg onlu nodes reachable from entry are used.
-    '''
     visited = set()
     post = []
 
@@ -100,9 +90,6 @@ def reverse_postorder(cfg, entry):
     return post
 
 def find_back_edges(cfg, entry):
-    """
-    Find back edges in the CFG using DFS.
-    """
     visited = set()
     stack = set()
     back_edges = []
@@ -114,13 +101,11 @@ def find_back_edges(cfg, entry):
             if v not in visited:
                 dfs(v)
             elif v in stack:
-                # v is still active in the DFS stack = back edge
                 back_edges.append((u, v))
         stack.remove(u)
 
     dfs(entry)
     return back_edges
-
 
 
 def mycfg():
@@ -139,19 +124,9 @@ def mycfg():
         print('}')
 
 def is_reducible(cfg, entry):
-    """
-    Reduction test
-      - If there are no back edges => reducible 
-      - Else, repeat until no change:
-          * remove self-edges
-          * pick a node A with exactly one predecessor P and merge A into P
-      - Reducible if one node remains.
-    """
-    # acyclic graphs are reducible
     if not find_back_edges(cfg, entry):
         return True
 
-    # Mutable copy (use sets for simple edge edits)
     graph = {u: set(succs) for u, succs in cfg.items()}
 
     while True:
@@ -165,37 +140,32 @@ def is_reducible(cfg, entry):
 
         # 2) Rebuild predecessors
         preds = {u: set() for u in graph}
-        for u, succs in graph.items():
-            for v in succs:
-                # Ensure 'v' exists even if it wasn’t an explicit key
+        for u, succs in list(graph.items()):
+            for v in list(succs):
                 if v not in graph:
                     graph[v] = set()
                     preds[v] = preds.get(v, set())
                 preds[v].add(u)
 
-        # 3) Find a merge candidate using reverse postorder for determinism
+        # 3) Merge candidate
         rpo = reverse_postorder({k: list(vs) for k, vs in graph.items()}, entry)
 
         merged = False
         for a in rpo:
-            if a not in preds:     # might have been removed mid-loop
+            if a not in preds:
                 continue
             if len(preds[a]) == 1:
                 p = next(iter(preds[a]))
-                # splice: p = (p \ {a}) ∪ succ(a)
                 if a in graph[p]:
                     graph[p].remove(a)
                 graph[p].update(graph.get(a, set()))
-
-                # remove 'a' from the graph and from all succ lists
                 graph.pop(a, None)
                 for u in graph:
                     if a in graph[u]:
                         graph[u].remove(a)
-
                 changed = True
                 merged = True
-                break  # re-run the outer loop after a single merge
+                break
 
         if not merged and not changed:
             break
@@ -203,49 +173,40 @@ def is_reducible(cfg, entry):
     return len(graph) == 1
 
 
-
-'''
-
-
-
-
-def find_back_edges(cfg, entry):
-
-"""
-
-Find back edges in a CFG using DFS.
-
-
-Parameters:
-
-cfg(dict): mapping {node: [successors]}
-
-entry(str): starting node
-
-
-Returns: list of edges (u,v) where u->v is a back edge
-
-"""
-
-def is_reducible(cfg, entry):
-
-"""
-
-Determine whether a CFG is reducible.
-
-
-Parameters:
-
-cfg(dict): mapping {node: [successors]}
-
-entry(str): starting node
-
-
-Returns: True if the CFG is reducible or False if the CFG is irreducible
-
-
-'''
-        
-
 if __name__ == "__main__":
-    mycfg()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--paths", action="store_true")
+    parser.add_argument("--rpo", action="store_true")
+    parser.add_argument("--backs", action="store_true")
+    parser.add_argument("--reducible", action="store_true")
+    parser.add_argument("--all", action="store_true")
+    args = parser.parse_args()
+
+    if args.all:
+        args.paths = args.rpo = args.backs = args.reducible = True
+
+    prog = json.load(sys.stdin)
+    for func in prog["functions"]:
+        name2block = block_map(form_blocks(func["instrs"]))
+        cfg = get_cfg(name2block)
+        entry = next(iter(name2block))  # first block is the entry, Im not sure this is always true but that is my assumption
+
+        # Always: print CFG
+        print('digraph {} {{'.format(func['name']))
+        for name in name2block:
+            print( ' {};'.format(name))
+        for name, succs in cfg.items():
+            for succ in succs:
+                print(' {} -> {};'.format(name,succ))
+        print('}')
+
+        # Optional extras
+        if args.paths:
+            print("paths:", get_path_lenths(cfg, entry))
+        if args.rpo:
+            print("rpo:", reverse_postorder(cfg, entry))
+        if args.backs:
+            print("backs:", find_back_edges(cfg, entry))
+        if args.reducible:
+            print("reducible:", is_reducible(cfg, entry))
+
