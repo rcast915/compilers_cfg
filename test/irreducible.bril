@@ -1,0 +1,25 @@
+@main() {
+  v0: int = const 0;
+  v1: int = const 1;
+
+.entry:
+  v2: bool = lt v0 v1;
+  br v2 .A .B;
+
+.A:
+  jmp .C;
+
+.B:
+  jmp .D;
+
+.C:
+  v3: bool = lt v0 v1;
+  br v3 .B .exit;     # C -> B (into the cycle)
+
+.D:
+  v4: bool = lt v0 v1;
+  br v4 .A .exit;     # D -> A (into the cycle)
+
+.exit:
+  ret;
+}

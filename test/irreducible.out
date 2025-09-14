@@ -1,0 +1,22 @@
+digraph main {
+ b0;
+ entry;
+ A;
+ B;
+ C;
+ D;
+ exit;
+ b0 -> entry;
+ entry -> A;
+ entry -> B;
+ A -> C;
+ B -> D;
+ C -> B;
+ C -> exit;
+ D -> A;
+ D -> exit;
+}
+paths: {'b0': 0, 'entry': 1, 'A': 2, 'B': 2, 'C': 3, 'D': 3, 'exit': 4}
+rpo: ['b0', 'entry', 'A', 'C', 'B', 'D', 'exit']
+backs: [('D', 'A')]
+reducible: False

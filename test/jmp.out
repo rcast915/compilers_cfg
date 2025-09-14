@@ -5,3 +5,7 @@ digraph main {
  b0 -> somewhere;
  b1 -> somewhere;
 }
+paths: {'b0': 0, 'somewhere': 1}
+rpo: ['b0', 'somewhere']
+backs: []
+reducible: True
